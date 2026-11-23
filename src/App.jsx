@@ -215,6 +215,30 @@ export default function App() {
     }
   }
 
+  const toApiMessage = (message, images) => {
+    if (!images.length) return { role: message.role, content: message.content }
+    return {
+      role: message.role,
+      content: [
+        ...(message.content ? [{ type: 'text', text: message.content }] : []),
+        ...images.map((image) => ({ type: 'image_url', image_url: { url: image.dataUrl } })),
+      ],
+    }
+  }
+
+  const buildApiHistory = (items) => {
+    let budget = 3
+    const built = []
+    for (let index = items.length - 1; index >= 0; index -= 1) {
+      const message = items[index]
+      const images = (message.attachments || []).filter((item) => item.kind === 'image' && item.dataUrl)
+      const allowed = images.slice(Math.max(0, images.length - budget))
+      budget -= allowed.length
+      built.push(toApiMessage(message, allowed))
+    }
+    return built.reverse()
+  }
+
   const send = async (text, think = false, attachments = []) => {
     let id = activeId
     if (!id) {
@@ -225,7 +249,7 @@ export default function App() {
     }
     const userMessage = { id: uid(), role: 'user', content: text, createdAt: Date.now() }
     if (attachments.length) userMessage.attachments = attachments
-    const history = [...messages, userMessage].map(({ role, content }) => ({ role, content }))
+    const history = buildApiHistory([...messages, userMessage])
     patchConversation(id, (item) => ({
       ...item,
       title: item.messages.length === 0 ? text.slice(0, 40) : item.title,

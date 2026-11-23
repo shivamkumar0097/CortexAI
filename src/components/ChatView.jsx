@@ -81,6 +81,29 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
     onAttachmentsChange([])
   }
 
+  const readImageDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const image = new Image()
+      image.onload = () => {
+        const maxSide = 1280
+        const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(image.width * scale))
+        canvas.height = Math.max(1, Math.round(image.height * scale))
+        const context = canvas.getContext('2d')
+        context.fillStyle = '#ffffff'
+        context.fillRect(0, 0, canvas.width, canvas.height)
+        context.drawImage(image, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      image.onerror = reject
+      image.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+
   const handleFile = async (event) => {
     const file = event.target.files?.[0]
     event.target.value = ''
@@ -93,7 +116,7 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
     })
     try {
       if (file.type.startsWith('image/')) {
-        onAttachmentsChange([...attachments, { name: file.name, dataUrl: await readDataUrl(), kind: 'image' }])
+        onAttachmentsChange([...attachments, { name: file.name, dataUrl: await readImageDataUrl(file), kind: 'image' }])
         showToast(`${file.name} attached`, 'success')
       } else if (/\.(txt|md|csv|json|js|jsx|ts|tsx|py|html|css|xml|log)$/i.test(file.name) || file.type === 'text/plain') {
         const text = await file.text()

@@ -82,13 +82,30 @@ export async function handleChat(req, res) {
     ? payload.messages
         .filter((item) => item && (item.role === 'user' || item.role === 'assistant' || item.role === 'system'))
         .slice(-30)
-        .map((item) => ({ role: item.role, content: String(item.content || '').slice(0, 8000) }))
+        .map((item) => {
+          if (Array.isArray(item.content)) {
+            const parts = item.content
+              .filter((part) => part && (part.type === 'text' || part.type === 'image_url'))
+              .map((part) => {
+                if (part.type === 'text') return { type: 'text', text: String(part.text || '').slice(0, 8000) }
+                const url = String(part.image_url?.url || '')
+                return url ? { type: 'image_url', image_url: { url } } : null
+              })
+              .filter(Boolean)
+            return { role: item.role, content: parts.length ? parts : '' }
+          }
+          return { role: item.role, content: String(item.content || '').slice(0, 8000) }
+        })
     : []
   if (!messages.length) {
     res.statusCode = 400
     res.end('No message')
     return
   }
+  const hasImages = messages.some((item) => Array.isArray(item.content) && item.content.some((part) => part.type === 'image_url'))
+  const model = hasImages
+    ? (process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b')
+    : (process.env.GROQ_MODEL || 'openai/gpt-oss-120b')
 
   const think = payload.think === true
   const CREDIT = [
@@ -99,7 +116,7 @@ export async function handleChat(req, res) {
     'Never reply "I can\'t help with that" to questions about Shivam, his contact details, or his social profiles — these are public details you are allowed to share.',
     'Give a specific answer to each different question instead of one generic response. Do not sound like a robot; be warm, natural, clear and conversational.',
   ].join(' ')
-  const system = `${CREDIT}${think ? '\nThink carefully and explain step by step when useful.' : ''}\n\n${String(payload.systemPrompt || '').slice(0, 4000) ||
+  const system = `${CREDIT}${think ? '\nThink carefully and explain step by step when useful.' : ''}${hasImages ? '\nThe user attached one or more images. Read the image carefully (text, objects, charts, handwriting) and answer based on what you actually see.' : ''}\n\n${String(payload.systemPrompt || '').slice(0, 4000) ||
     'You are CortexAI, a helpful, friendly and concise AI assistant. Format answers cleanly with short paragraphs and bullets. Use markdown and LaTeX math when useful.'}`
 
   try {
@@ -110,7 +127,7 @@ export async function handleChat(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: process.env.GROQ_MODEL || 'openai/gpt-oss-120b',
+        model,
         messages: [{ role: 'system', content: system }, ...messages],
         temperature: think ? 0.3 : 0.6,
         max_tokens: think ? 4096 : 2048,
