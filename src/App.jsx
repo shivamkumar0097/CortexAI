@@ -28,12 +28,8 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [cloudLoading, setCloudLoading] = useState(false)
   const [cloudReady, setCloudReady] = useState(false)
-  const [pullDistance, setPullDistance] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
   const abortRef = useRef(null)
   const mainRef = useRef(null)
-  const pullStartRef = useRef(null)
-  const pullDistanceRef = useRef(0)
 
   useEffect(() => {
     if (user) saveConversations(conversations)
@@ -44,68 +40,6 @@ export default function App() {
   useEffect(() => {
     if (!authLoading && !user) clearConversations()
   }, [authLoading, user])
-
-  useEffect(() => {
-    const el = mainRef.current
-    if (!el) return
-    const getScroller = (target) => {
-      let node = target instanceof Element ? target : null
-      while (node) {
-        const style = window.getComputedStyle(node)
-        if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) return node
-        node = node.parentElement
-      }
-      return null
-    }
-    const onStart = (event) => {
-      if (!window.matchMedia('(max-width: 767px)').matches || refreshing || event.touches.length !== 1) return
-      const scroller = getScroller(event.target)
-      if (scroller && scroller.scrollTop > 0) return
-      pullStartRef.current = event.touches[0].clientY
-      pullDistanceRef.current = 0
-    }
-    const onMove = (event) => {
-      if (pullStartRef.current === null || event.touches.length !== 1) return
-      const delta = event.touches[0].clientY - pullStartRef.current
-      if (delta <= 0) {
-        if (pullDistanceRef.current !== 0) {
-          pullDistanceRef.current = 0
-          setPullDistance(0)
-        }
-        return
-      }
-      if (event.cancelable) event.preventDefault()
-      const next = Math.min(delta * 0.5, 90)
-      pullDistanceRef.current = next
-      setPullDistance(next)
-    }
-    const onEnd = () => {
-      if (pullStartRef.current === null) return
-      pullStartRef.current = null
-      const distance = pullDistanceRef.current
-      pullDistanceRef.current = 0
-      setPullDistance(0)
-      if (distance >= 56 && !refreshing) {
-        setRefreshing(true)
-        window.setTimeout(() => window.location.reload(), 250)
-      }
-    }
-    const onCancel = () => {
-      pullStartRef.current = null
-      pullDistanceRef.current = 0
-      setPullDistance(0)
-    }
-    el.addEventListener('touchstart', onStart, { passive: true })
-    el.addEventListener('touchmove', onMove, { passive: false })
-    el.addEventListener('touchend', onEnd)
-    el.addEventListener('touchcancel', onCancel)
-    return () => {
-      el.removeEventListener('touchstart', onStart)
-      el.removeEventListener('touchmove', onMove)
-      el.removeEventListener('touchend', onEnd)
-      el.removeEventListener('touchcancel', onCancel)
-    }
-  }, [refreshing])
 
   useEffect(() => {
     if (!user) {
@@ -368,14 +302,6 @@ export default function App() {
         onNavigate={setView}
       />
       <main ref={mainRef} className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        {(pullDistance > 0 || refreshing) && (
-          <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 md:hidden" style={{ opacity: refreshing ? 1 : Math.min(1, pullDistance / 24) }}>
-            <div
-              className={`h-7 w-7 rounded-full border-2 border-white/20 border-t-cyan-300 ${refreshing ? 'animate-spin' : ''}`}
-              style={refreshing ? undefined : { transform: `rotate(${pullDistance * 5}deg)` }}
-            />
-          </div>
-        )}
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
