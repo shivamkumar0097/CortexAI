@@ -139,11 +139,12 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
   const showThink = features?.think !== false
   const showVoice = features?.voice !== false
   const shortModel = String(model || '').split('/').pop()
+  const isMobileView = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
 
   return (
     <form onSubmit={submit} className="composer w-full">
       {attachments.length > 0 && (
-        <div className="flex flex-wrap gap-2 px-4 pt-3">
+        <div className="composer-attachments flex flex-wrap gap-2 px-4 pt-3">
           {attachments.map((attachment, index) => (
             <div key={index} className="group relative overflow-hidden rounded-lg border border-white/10">
               {attachment.kind === 'image' ? (
@@ -177,11 +178,11 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
             submit(event)
           }
         }}
-        placeholder="Write anything"
-        className="max-h-44 min-h-[44px] w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-[15px] leading-relaxed text-white/90 outline-none placeholder:text-white/35"
+        placeholder={isMobileView ? 'Reply to CortexAI' : 'Write anything'}
+        className="composer-input max-h-44 min-h-[44px] w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-[15px] leading-relaxed text-white/90 outline-none placeholder:text-white/35"
       />
-      <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-1">
-        <div className="relative flex items-center gap-1">
+      <div className="composer-controls flex items-center justify-between gap-2 px-3 pb-3 pt-1">
+        <div className="composer-left relative flex items-center gap-1">
           {showFiles && (
             <>
               <button
@@ -224,12 +225,12 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
             </>
           )}
         </div>
-        <div className="relative flex items-center gap-1">
+        <div className="composer-right relative flex items-center gap-1">
           <button
             ref={modelBtnRef}
             type="button"
             onClick={() => setModelOpen((open) => !open)}
-            className="icon-btn flex max-w-[110px] items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] text-white/55 hover:text-white/90"
+            className="composer-model icon-btn flex max-w-[110px] items-center gap-1 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1 text-[11px] text-white/55 hover:text-white/90"
             title="Change model"
           >
             <span className="truncate">{shortModel}</span>
@@ -255,7 +256,7 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
             <button
               type="button"
               onClick={onToggleThink}
-              className={`icon-btn flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px] ${
+              className={`composer-think icon-btn flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12px] ${
                 think ? 'bg-white/[0.12] text-white' : 'text-white/50 hover:bg-white/[0.07] hover:text-white/85'
               }`}
               title="Think step by step"

@@ -96,6 +96,43 @@ textarea, button, input, select { font: inherit; }
   box-shadow: 0 12px 38px -18px rgba(0, 0, 0, 0.95);
 }
 
+@media (max-width: 767px) {
+  .composer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0;
+    padding: 4px 6px;
+    border-radius: 999px;
+  }
+  .composer-attachments {
+    order: 0;
+    flex: 0 0 100%;
+    padding: 8px 8px 2px;
+  }
+  .composer-controls { display: contents; }
+  .composer-left { order: 1; }
+  .composer-input {
+    order: 2;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 40px;
+    max-height: 120px;
+    padding: 9px 6px;
+    font-size: 15px;
+  }
+  .composer-right { order: 3; gap: 2px; }
+  .composer-model,
+  .composer-think { display: none; }
+  .composer-left > button,
+  .composer-right > button {
+    width: 38px;
+    height: 38px;
+  }
+  .welcome-composer .composer { border-radius: 999px; }
+  .welcome-composer textarea { min-height: 40px; padding-top: 9px; }
+}
+
 .welcome-composer .composer {
   background: rgba(255, 255, 255, 0.025);
   border-color: rgba(255, 255, 255, 0.07);
