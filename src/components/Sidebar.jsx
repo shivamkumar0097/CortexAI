@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  CalendarClock, Compass, Images, Library, LogIn, LogOut, PanelLeftClose, Plug,
+  CalendarClock, Compass, Images, Library, LogIn, LogOut, PanelLeftClose, Pencil, Plug,
   Search, Settings2, SquarePen, Trash2, X,
 } from 'lucide-react'
 const NAV = [
