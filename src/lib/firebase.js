@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app'
 import {
-  GoogleAuthProvider, createUserWithEmailAndPassword, getAuth,
-  onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup,
+  GoogleAuthProvider, browserLocalPersistence, createUserWithEmailAndPassword, getAuth,
+  onAuthStateChanged, setPersistence, signInWithEmailAndPassword, signInWithPopup,
   signOut, updateProfile,
 } from 'firebase/auth'
 import { doc, getDoc, getFirestore, setDoc } from 'firebase/firestore'
@@ -25,6 +25,7 @@ if (isFirebaseConfigured) {
     const app = initializeApp(config)
     auth = getAuth(app)
     db = getFirestore(app)
+    setPersistence(auth, browserLocalPersistence).catch(() => {})
   } catch {
     auth = null
     db = null

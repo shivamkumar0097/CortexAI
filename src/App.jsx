@@ -8,7 +8,7 @@ import Toaster from './components/Toaster.jsx'
 import {
   ImagesPanel, LibraryPanel, ScheduledPanel, PluginsPanel, ExplorePanel,
 } from './components/Panels.jsx'
-import { clearConversations, saveConversations, loadSettings, saveSettings, uid } from './lib/storage.js'
+import { clearConversations, loadConversations, saveConversations, loadSettings, saveSettings, uid } from './lib/storage.js'
 import { showToast } from './lib/toast.js'
 import {
   isFirebaseConfigured, loadCloud, onAuthChange, saveCloud, signOutUser,
@@ -27,6 +27,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
   const [cloudLoading, setCloudLoading] = useState(false)
+  const [cloudReady, setCloudReady] = useState(false)
   const abortRef = useRef(null)
 
   useEffect(() => {
@@ -40,11 +41,14 @@ export default function App() {
   }, [authLoading, user])
 
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setCloudReady(false)
+      return
+    }
     let cancelled = false
     setCloudLoading(true)
     loadCloud(user.uid)
-      .then((data) => {
+      .then(async (data) => {
         if (cancelled) return
         if (data?.conversations?.length) {
           setConversations(data.conversations)
@@ -52,22 +56,25 @@ export default function App() {
           if (data.settings) setSettings((prev) => ({ ...prev, ...data.settings }))
           showToast('Cloud history synced', 'success')
         } else {
-          saveCloud(user.uid, conversations, settings).catch(() => {})
+          const local = loadConversations()
+          const initial = local.length ? local : conversations
+          if (local.length && !conversations.length) setConversations(local)
+          await saveCloud(user.uid, initial, settings)
         }
       })
       .catch(() => { if (!cancelled) showToast('Could not load cloud history', 'error') })
-      .finally(() => { if (!cancelled) setCloudLoading(false) })
+      .finally(() => { if (!cancelled) { setCloudLoading(false); setCloudReady(true) } })
     return () => { cancelled = true }
   }, [user])
 
   useEffect(() => {
-    if (!user || cloudLoading) return
+    if (!user || !cloudReady || cloudLoading) return
     const timer = setTimeout(() => {
       saveCloud(user.uid, conversations, settings)
         .catch(() => showToast('Cloud sync failed', 'error'))
-    }, 900)
+    }, 300)
     return () => clearTimeout(timer)
-  }, [conversations, settings, user, cloudLoading])
+  }, [conversations, settings, user, cloudLoading, cloudReady])
 
   const active = conversations.find((item) => item.id === activeId) || null
   const messages = active?.messages || []
