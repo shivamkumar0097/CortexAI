@@ -81,7 +81,7 @@ export default function Message({ message, streaming, onToggleStar, onFeedback, 
 
   if (isUser) {
     const images = (message.attachments || []).filter((item) => item.kind === 'image' && item.dataUrl)
-    const files = (message.attachments || []).filter((item) => item.kind !== 'image' || !item.dataUrl)
+    const files = (message.attachments || []).filter((item) => item.kind !== 'image')
     return (
       <>
         <div className="message-in flex flex-col items-end gap-2">

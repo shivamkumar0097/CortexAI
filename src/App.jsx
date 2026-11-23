@@ -95,15 +95,28 @@ export default function App() {
     }
     let cancelled = false
     setCloudLoading(true)
+    const local = loadConversations()
+    const mergeLocalImages = (cloudConversations) => cloudConversations.map((conversation) => {
+      const localConversation = local.find((item) => item.id === conversation.id)
+      if (!localConversation?.messages?.length) return conversation
+      return {
+        ...conversation,
+        messages: conversation.messages.map((message) => {
+          if (message.attachments?.some((item) => item.dataUrl)) return message
+          const localMessage = localConversation.messages.find((item) => item.id === message.id)
+          const attachments = localMessage?.attachments
+          return attachments?.some((item) => item.dataUrl) ? { ...message, attachments } : message
+        }),
+      }
+    })
     loadCloud(user.uid)
       .then(async (data) => {
         if (cancelled) return
         if (data?.conversations?.length) {
-          setConversations(data.conversations)
+          setConversations(mergeLocalImages(data.conversations))
           setActiveId((prev) => (prev && data.conversations.some((item) => item.id === prev)) ? prev : null)
           if (data.settings) setSettings((prev) => ({ ...prev, ...data.settings }))
         } else {
-          const local = loadConversations()
           const initial = local.length ? local : conversations
           if (local.length && !conversations.length) setConversations(local)
           await saveCloud(user.uid, initial, settings)
