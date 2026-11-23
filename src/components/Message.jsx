@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Component, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -11,6 +11,29 @@ import {
 import { showToast } from '../lib/toast.js'
 
 const ICON_BTN = 'icon-btn grid h-7 w-7 place-items-center rounded-lg text-white/35 hover:bg-white/[0.07] hover:text-white/90'
+
+class MarkdownBoundary extends Component {
+  constructor(props) {
+    super(props)
+    this.state = { failed: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  componentDidCatch(error) {
+    console.error('Markdown render failed:', error)
+  }
+
+  componentDidUpdate(prev) {
+    if (this.state.failed && prev.children !== this.props.children) this.setState({ failed: false })
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children
+  }
+}
 
 export default function Message({ message, streaming, onToggleStar, onFeedback, onRegenerate, onDeleteMessage }) {
   const [copied, setCopied] = useState(false)
@@ -157,9 +180,11 @@ export default function Message({ message, streaming, onToggleStar, onFeedback, 
       <div className="group min-w-0 flex-1">
         {message.content ? (
           <div className="prose-ai text-[15px] leading-[1.75] text-white/85">
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
-              {message.content}
-            </ReactMarkdown>
+            <MarkdownBoundary fallback={<p className="whitespace-pre-wrap">{message.content}</p>}>
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[[rehypeKatex, { throwOnError: false }]]}>
+                {message.content}
+              </ReactMarkdown>
+            </MarkdownBoundary>
             {streaming && <span className="stream-cursor ml-0.5 inline-block h-4 w-0.5 bg-white/70 align-middle" />}
           </div>
         ) : (
