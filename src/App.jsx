@@ -8,14 +8,14 @@ import Toaster from './components/Toaster.jsx'
 import {
   ImagesPanel, LibraryPanel, ScheduledPanel, PluginsPanel, ExplorePanel,
 } from './components/Panels.jsx'
-import { loadConversations, saveConversations, loadSettings, saveSettings, uid } from './lib/storage.js'
+import { clearConversations, saveConversations, loadSettings, saveSettings, uid } from './lib/storage.js'
 import { showToast } from './lib/toast.js'
 import {
   isFirebaseConfigured, loadCloud, onAuthChange, saveCloud, signOutUser,
 } from './lib/firebase.js'
 
 export default function App() {
-  const [conversations, setConversations] = useState(loadConversations)
+  const [conversations, setConversations] = useState([])
   const [activeId, setActiveId] = useState(null)
   const [settings, setSettings] = useState(loadSettings)
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -29,9 +29,15 @@ export default function App() {
   const [cloudLoading, setCloudLoading] = useState(false)
   const abortRef = useRef(null)
 
-  useEffect(() => saveConversations(conversations), [conversations])
+  useEffect(() => {
+    if (user) saveConversations(conversations)
+  }, [conversations, user])
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => onAuthChange((next) => { setUser(next); setAuthLoading(false) }), [])
+
+  useEffect(() => {
+    if (!authLoading && !user) clearConversations()
+  }, [authLoading, user])
 
   useEffect(() => {
     if (!user) return

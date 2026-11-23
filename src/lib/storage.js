@@ -31,6 +31,12 @@ export const saveConversations = (value) => {
   } catch {}
 }
 
+export const clearConversations = () => {
+  try {
+    localStorage.removeItem(CONV_KEY)
+  } catch {}
+}
+
 export const loadSettings = () => {
   try {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }
