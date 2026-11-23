@@ -13,9 +13,14 @@ if (typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matc
   document.addEventListener('gesturechange', blockGesture)
 }
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {})
+    navigator.serviceWorker.getRegistrations()
+      .then((registrations) => registrations.forEach((registration) => registration.unregister()))
+      .catch(() => {})
+    if (window.caches) {
+      caches.keys().then((keys) => keys.forEach((key) => caches.delete(key))).catch(() => {})
+    }
   })
 }
 
