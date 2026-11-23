@@ -2,6 +2,8 @@
 
 A fast, polished AI chat app with streaming replies, cloud sync, and a mobile-first interface. Built by **Shivam Kumar**.
 
+**Live demo:** [cortexai-three.vercel.app](https://cortexai-three.vercel.app)
+
 CortexAI talks to the Groq API through a small serverless endpoint, renders rich Markdown and LaTeX answers, keeps your history locally, and optionally syncs it to Firestore after Firebase sign-in.
 
 ## Features
@@ -10,7 +12,7 @@ CortexAI talks to the Groq API through a small serverless endpoint, renders rich
 - **AI-generated chat titles** — a short title is generated from your first message
 - **Multiple login options** — email/password and Google sign-in via Firebase Auth
 - **Cloud sync** — conversations and settings sync to Firestore when signed in
-- **Local-first storage** — chats, settings, reminders, and bookmarks also persist in `localStorage`
+- **Sign-in-aware storage** — chat history is written locally only while signed in; settings, reminders, and bookmarks stay in `localStorage`
 - **Rich messages** — Markdown, GitHub-style tables, fenced code blocks, and KaTeX math
 - **Attachments** — attach images and text files from the composer
 - **Voice input** — browser speech recognition support where available
