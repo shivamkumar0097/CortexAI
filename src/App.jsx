@@ -32,8 +32,8 @@ export default function App() {
   const mainRef = useRef(null)
 
   useEffect(() => {
-    if (user) saveConversations(conversations)
-  }, [conversations, user])
+    if (user && cloudReady) saveConversations(conversations)
+  }, [conversations, user, cloudReady])
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => onAuthChange((next) => { setUser(next); setAuthLoading(false) }), [])
 
@@ -122,7 +122,11 @@ export default function App() {
           await saveCloud(user.uid, initial, settings)
         }
       })
-      .catch((error) => { if (!cancelled) showToast(`Could not load cloud history: ${error?.code || error?.message || 'unknown'}`, 'error') })
+      .catch((error) => {
+        if (cancelled) return
+        if (!conversations.length && local.length) setConversations(local)
+        showToast(`Could not load cloud history: ${error?.code || error?.message || 'unknown'}`, 'error')
+      })
       .finally(() => { if (!cancelled) { setCloudLoading(false); setCloudReady(true) } })
     return () => { cancelled = true }
   }, [user])
