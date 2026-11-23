@@ -121,7 +121,6 @@ export default function App() {
           setConversations(data.conversations)
           setActiveId((prev) => (prev && data.conversations.some((item) => item.id === prev)) ? prev : null)
           if (data.settings) setSettings((prev) => ({ ...prev, ...data.settings }))
-          showToast('Cloud history synced', 'success')
         } else {
           const local = loadConversations()
           const initial = local.length ? local : conversations
