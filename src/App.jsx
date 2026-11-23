@@ -8,21 +8,21 @@ import Toaster from './components/Toaster.jsx'
 import {
   ImagesPanel, LibraryPanel, ScheduledPanel, PluginsPanel, ExplorePanel,
 } from './components/Panels.jsx'
-import { clearConversations, loadConversations, saveConversations, loadSettings, saveSettings, uid } from './lib/storage.js'
+import { loadConversations, saveConversations, loadSettings, saveSettings, loadActiveId, saveActiveId, loadView, saveView, uid } from './lib/storage.js'
 import { showToast } from './lib/toast.js'
 import {
   isFirebaseConfigured, loadCloud, onAuthChange, saveCloud, signOutUser,
 } from './lib/firebase.js'
 
 export default function App() {
-  const [conversations, setConversations] = useState([])
-  const [activeId, setActiveId] = useState(null)
+  const [conversations, setConversations] = useState(loadConversations)
+  const [activeId, setActiveId] = useState(loadActiveId)
   const [settings, setSettings] = useState(loadSettings)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [authOpen, setAuthOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const [view, setView] = useState('chat')
+  const [view, setView] = useState(loadView)
   const [streaming, setStreaming] = useState(false)
   const [user, setUser] = useState(null)
   const [authLoading, setAuthLoading] = useState(true)
@@ -33,12 +33,35 @@ export default function App() {
   const abortRef = useRef(null)
   const mainRef = useRef(null)
   const onlineTimerRef = useRef(null)
+  const historyReadyRef = useRef(false)
+  const navRef = useRef({ view, activeId, settingsOpen, authOpen, sidebarOpen })
+  navRef.current = { view, activeId, settingsOpen, authOpen, sidebarOpen }
+
+  useEffect(() => saveConversations(conversations), [conversations])
+  useEffect(() => saveSettings(settings), [settings])
+  useEffect(() => { saveActiveId(activeId); saveView(view) }, [activeId, view])
+  useEffect(() => onAuthChange((next) => { setUser(next); setAuthLoading(false) }), [])
 
   useEffect(() => {
-    if (user && cloudReady) saveConversations(conversations)
-  }, [conversations, user, cloudReady])
-  useEffect(() => saveSettings(settings), [settings])
-  useEffect(() => onAuthChange((next) => { setUser(next); setAuthLoading(false) }), [])
+    if (!historyReadyRef.current) {
+      window.history.replaceState({ cortexai: true }, '')
+      window.history.pushState({ cortexai: true }, '')
+      historyReadyRef.current = true
+    }
+    const onPopState = () => {
+      const current = navRef.current
+      if (current.settingsOpen) setSettingsOpen(false)
+      else if (current.authOpen) setAuthOpen(false)
+      else if (current.sidebarOpen) setSidebarOpen(false)
+      else if (current.view !== 'chat' || current.activeId) {
+        setView('chat')
+        setActiveId(null)
+      }
+      window.history.pushState({ cortexai: true }, '')
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   useEffect(() => {
     const handleOnline = () => {
@@ -60,10 +83,6 @@ export default function App() {
       clearTimeout(onlineTimerRef.current)
     }
   }, [user, cloudReady, conversations, settings])
-
-  useEffect(() => {
-    if (!authLoading && !user) clearConversations()
-  }, [authLoading, user])
 
   useEffect(() => {
     const isMobile = () => window.matchMedia('(max-width: 767px)').matches

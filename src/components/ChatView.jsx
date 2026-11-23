@@ -14,7 +14,7 @@ const SUGGESTIONS = [
   'Break this into steps',
 ]
 
-function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleThink, features, attachments, onAttachmentsChange, model, onModelChange }) {
+function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleThink, features, attachments, onAttachmentsChange, model, onModelChange, ambient }) {
   const textareaRef = useRef(null)
   const fileRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -165,7 +165,7 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
   const isMobileView = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
 
   return (
-    <form onSubmit={submit} className="composer w-full">
+    <form onSubmit={submit} className={`composer w-full ${ambient ? 'composer-tinted' : ''}`}>
       {attachments.length > 0 && (
         <div className="composer-attachments flex flex-wrap gap-2 px-4 pt-3">
           {attachments.map((attachment, index) => (
@@ -333,17 +333,29 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
   const [showScrollButton, setShowScrollButton] = useState(false)
   const [brandMounted, setBrandMounted] = useState(messages.length === 0)
   const [brandActive, setBrandActive] = useState(messages.length === 0)
+  const [ambientMounted, setAmbientMounted] = useState(messages.length === 0)
+  const [ambientActive, setAmbientActive] = useState(messages.length === 0)
   const scrollRef = useRef(null)
   const atBottomRef = useRef(true)
 
   useEffect(() => {
     if (messages.length > 0) {
       setBrandActive(false)
-      const timer = setTimeout(() => setBrandMounted(false), 700)
+      const timer = setTimeout(() => setBrandMounted(false), 1000)
       return () => clearTimeout(timer)
     }
     setBrandMounted(true)
     setBrandActive(true)
+  }, [messages.length])
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const fadeTimer = setTimeout(() => setAmbientActive(false), 6500)
+      const unmountTimer = setTimeout(() => setAmbientMounted(false), 8000)
+      return () => { clearTimeout(fadeTimer); clearTimeout(unmountTimer) }
+    }
+    setAmbientMounted(true)
+    setAmbientActive(true)
   }, [messages.length])
 
   useEffect(() => {
@@ -397,10 +409,16 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
     onAttachmentsChange: setAttachments,
     model: settings.model,
     onModelChange,
+    ambient: ambientActive,
   }
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-[#08080a]">
+      {ambientMounted && (
+        <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-0 h-[66%] overflow-hidden transition-opacity duration-[1500ms] ease-out sm:h-[58%] ${ambientActive ? 'opacity-100' : 'opacity-0'}`} aria-hidden="true">
+          <div className="home-ambient absolute -bottom-[20%] left-[-15%] right-[-15%] top-[5%]" />
+        </div>
+      )}
       {sidebarCollapsed && (
         <button
           type="button"
@@ -414,20 +432,26 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
 
       <div className="relative min-h-0 flex-1">
         {brandMounted && (
-          <div className={`pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center pt-12 transition-opacity duration-700 ease-out md:hidden ${brandActive ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`pointer-events-none absolute inset-x-0 top-[38%] z-0 flex -translate-y-1/2 justify-center transition-opacity duration-700 ease-out sm:hidden ${brandActive ? 'opacity-100' : 'opacity-0'}`}>
             <span className="brand-glow text-[clamp(46px,16vw,76px)] font-semibold tracking-tight">CortexAI</span>
           </div>
         )}
         <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 h-full overflow-y-auto overscroll-contain px-4 sm:px-8">
           {messages.length === 0 ? (
-            <div className="flex min-h-full flex-col items-center justify-center pb-8 pt-16">
-              <h1 className="mb-8 hidden text-center text-[25px] font-medium tracking-tight text-white/90 sm:block sm:text-[28px]">
-                What’s on your mind today?
-              </h1>
-              <div className="w-full max-w-[960px] welcome-composer">
-                <Composer {...composerProps} />
+            <div className="flex min-h-full flex-col">
+              <div className="hidden flex-1 flex-col items-center justify-center pb-8 sm:flex sm:pb-12">
+                {brandMounted && (
+                  <span className={`brand-glow mb-3 hidden text-[clamp(34px,4vw,54px)] font-semibold tracking-tight transition-opacity duration-1000 ease-out sm:block ${brandActive ? 'opacity-100' : 'opacity-0'}`}>
+                    CortexAI
+                  </span>
+                )}
+                <h1 className="text-center text-[18px] font-medium tracking-tight text-white/90 sm:text-[20px]">
+                  What’s on your mind today?
+                </h1>
+              </div>
+              <div className="mx-auto mt-auto w-full max-w-[960px] pb-6 welcome-composer sm:pb-10">
                 {showSuggestions && settings?.features?.suggestions !== false && (
-                  <div className="fade-in mt-7 px-1">
+                  <div className="fade-in mb-4 px-1">
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-[13px] text-white/55">Search the web</span>
                       <button
@@ -454,6 +478,7 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
                     </div>
                   </div>
                 )}
+                <Composer {...composerProps} />
               </div>
             </div>
           ) : (
@@ -485,7 +510,7 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
       </div>
 
       {messages.length > 0 && (
-        <div className="shrink-0 px-4 pb-6 pt-1 sm:px-8 sm:pb-3">
+        <div className="relative z-10 shrink-0 px-4 pb-6 pt-1 sm:px-8 sm:pb-3">
           <div className="mx-auto w-full max-w-[960px]">
             <Composer {...composerProps} />
             <p className="mt-2 hidden text-center text-[11px] text-white/30 sm:block">

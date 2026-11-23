@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   CalendarClock, Compass, Images, Library, LogIn, LogOut, PanelLeftClose, Pencil, Plug,
   Search, Settings2, SquarePen, Trash2, X,
@@ -17,7 +17,22 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [draftTitle, setDraftTitle] = useState('')
+  const [menuId, setMenuId] = useState(null)
+  const pressTimerRef = useRef(null)
+  const longPressedRef = useRef(false)
   const filtered = conversations.filter((item) => (item.title || 'New conversation').toLowerCase().includes(query.toLowerCase()))
+
+  useEffect(() => setMenuId(null), [open])
+
+  const startPress = (id) => {
+    longPressedRef.current = false
+    clearTimeout(pressTimerRef.current)
+    pressTimerRef.current = setTimeout(() => {
+      longPressedRef.current = true
+      setMenuId(id)
+    }, 500)
+  }
+  const cancelPress = () => clearTimeout(pressTimerRef.current)
 
   const commitRename = () => {
     if (!editingId) return
@@ -34,9 +49,10 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
           open ? 'translate-x-0' : '-translate-x-full'
         } ${collapsed ? 'md:hidden' : ''}`}
       >
+        {menuId && <div className="fixed inset-0 z-50 md:hidden" onClick={() => { setMenuId(null); longPressedRef.current = false }} />}
         <div className="flex h-14 shrink-0 items-center justify-between px-4">
           <button type="button" onClick={() => { onNavigate('chat'); onClose() }} className="icon-btn flex min-w-0 items-center gap-2 rounded-lg py-1">
-            <img src="/favicon.png" alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" />
+            <img src="/CortexAI.png" alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" />
             <span className="truncate text-[15px] font-semibold tracking-tight text-white/90">CortexAI</span>
           </button>
           <div className="flex items-center gap-0.5">
@@ -121,9 +137,20 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
               return (
                 <div
                   key={item.id}
-                  className={`group flex items-center rounded-lg transition-colors ${
+                  className={`group relative flex items-center rounded-lg transition-colors ${
                     active ? 'bg-white/[0.09]' : 'hover:bg-white/[0.05]'
                   }`}
+                  onTouchStart={() => startPress(item.id)}
+                  onTouchEnd={cancelPress}
+                  onTouchMove={cancelPress}
+                  onTouchCancel={cancelPress}
+                  onContextMenu={(event) => {
+                    if (window.matchMedia('(max-width: 767px)').matches) {
+                      event.preventDefault()
+                      longPressedRef.current = true
+                      setMenuId(item.id)
+                    }
+                  }}
                 >
                   {editingId === item.id ? (
                     <input
@@ -141,7 +168,11 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { onSelect(item.id); onClose() }}
+                      onClick={() => {
+                        if (longPressedRef.current) { longPressedRef.current = false; return }
+                        onSelect(item.id)
+                        onClose()
+                      }}
                       className={`min-w-0 flex-1 truncate px-3 py-2 text-left text-[13px] ${
                         active ? 'text-white' : 'text-white/65 group-hover:text-white/90'
                       }`}
@@ -154,7 +185,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
                       <button
                         type="button"
                         onClick={() => { setEditingId(item.id); setDraftTitle(item.title || '') }}
-                        className="shrink-0 rounded p-1 text-white/30 opacity-100 transition-opacity hover:text-white/80 md:opacity-0 md:group-hover:opacity-100"
+                        className="hidden shrink-0 rounded p-1 text-white/30 transition-opacity hover:text-white/80 md:block md:opacity-0 md:group-hover:opacity-100"
                         aria-label="Rename chat"
                         title="Rename chat"
                       >
@@ -163,12 +194,33 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onRe
                       <button
                         type="button"
                         onClick={() => onDelete(item.id)}
-                        className="mr-2 shrink-0 rounded p-1 text-white/25 opacity-100 transition-opacity hover:text-red-400 md:opacity-0 md:group-hover:opacity-100"
+                        className="mr-2 hidden shrink-0 rounded p-1 text-white/25 transition-opacity hover:text-red-400 md:block md:opacity-0 md:group-hover:opacity-100"
                         aria-label="Delete chat"
                       >
                         <Trash2 size={13} />
                       </button>
                     </>
+                  )}
+                  {menuId === item.id && editingId !== item.id && (
+                    <div
+                      className="fade-in absolute right-2 top-full z-[60] mt-1 w-32 rounded-xl border border-white/10 bg-[#1e1e20] p-1 shadow-2xl md:hidden"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => { onDelete(item.id); setMenuId(null); longPressedRef.current = false }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-red-300 hover:bg-white/[0.07]"
+                      >
+                        <Trash2 size={13} /> Delete chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(item.id); setDraftTitle(item.title || ''); setMenuId(null); longPressedRef.current = false }}
+                        className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[12px] text-white/75 hover:bg-white/[0.07]"
+                      >
+                        <Pencil size={13} /> Rename
+                      </button>
+                    </div>
                   )}
                 </div>
               )

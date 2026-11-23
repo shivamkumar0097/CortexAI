@@ -1,6 +1,8 @@
 const CONV_KEY = 'cortexai:conversations'
 const SETTINGS_KEY = 'cortexai:settings'
 const SCHEDULE_KEY = 'cortexai:scheduled'
+const ACTIVE_KEY = 'cortexai:active'
+const VIEW_KEY = 'cortexai:view'
 
 const DEFAULT_SETTINGS = {
   model: 'openai/gpt-oss-120b',
@@ -31,12 +33,6 @@ export const saveConversations = (value) => {
   } catch {}
 }
 
-export const clearConversations = () => {
-  try {
-    localStorage.removeItem(CONV_KEY)
-  } catch {}
-}
-
 export const loadSettings = () => {
   try {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') }
@@ -63,6 +59,36 @@ export const loadScheduled = () => {
 export const saveScheduled = (value) => {
   try {
     localStorage.setItem(SCHEDULE_KEY, JSON.stringify(value))
+  } catch {}
+}
+
+export const loadActiveId = () => {
+  try {
+    return localStorage.getItem(ACTIVE_KEY) || null
+  } catch {
+    return null
+  }
+}
+
+export const saveActiveId = (value) => {
+  try {
+    if (value) localStorage.setItem(ACTIVE_KEY, value)
+    else localStorage.removeItem(ACTIVE_KEY)
+  } catch {}
+}
+
+export const loadView = () => {
+  try {
+    const value = localStorage.getItem(VIEW_KEY)
+    return ['chat', 'images', 'library', 'scheduled', 'plugins', 'explore'].includes(value) ? value : 'chat'
+  } catch {
+    return 'chat'
+  }
+}
+
+export const saveView = (value) => {
+  try {
+    localStorage.setItem(VIEW_KEY, value)
   } catch {}
 }
 

@@ -64,7 +64,7 @@ export default function AuthModal({ onClose }) {
       >
         <div className="mb-4 flex items-start justify-between">
           <div className="flex items-center gap-2.5">
-            <img src="/favicon.png" alt="" className="h-9 w-9 rounded-lg object-cover" />
+            <img src="/CortexAI.png" alt="" className="h-9 w-9 rounded-lg object-cover" />
             <div>
               <h2 className="text-[16px] font-semibold text-white/90">CortexAI</h2>
               <p className="text-[11.5px] text-white/40">{signup ? 'Create Account' : 'Welcome Back'}</p>
