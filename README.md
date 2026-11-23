@@ -24,6 +24,7 @@ CortexAI talks to the Groq API through a small serverless endpoint, renders rich
 - **Explore panel** — curated starter prompts for learning, building, and planning
 - **Model switching** — change the Groq model from the composer
 - **Responsive UI** — collapsible sidebar, mobile drawer, touch-friendly controls
+- **Installable PWA** — add to home screen and launch fullscreen without the browser bar
 
 ## Tech Stack
 
