@@ -67,14 +67,31 @@ export const loadCloud = async (uid) => {
   return snapshot.exists() ? snapshot.data() : null
 }
 
+const stripUndefined = (value) => {
+  if (Array.isArray(value)) return value.map(stripUndefined)
+  if (value && typeof value === 'object') {
+    return Object.entries(value).reduce((result, [key, entry]) => {
+      if (entry !== undefined) result[key] = stripUndefined(entry)
+      return result
+    }, {})
+  }
+  return value
+}
+
 export const saveCloud = async (uid, conversations, settings) => {
   if (!db) return
   const clean = conversations.map((conversation) => ({
     ...conversation,
     messages: conversation.messages.map((message) => ({
       ...message,
-      attachments: message.attachments?.map(({ dataUrl, ...rest }) => rest),
+      attachments: message.attachments?.length
+        ? message.attachments.map(({ dataUrl, ...rest }) => rest)
+        : undefined,
     })),
   }))
-  await setDoc(cloudDoc(uid), { conversations: clean, settings, updatedAt: Date.now() }, { merge: true })
+  const payload = { conversations: stripUndefined(clean), settings: stripUndefined(settings), updatedAt: Date.now() }
+  if (JSON.stringify(payload).length > 900000) {
+    throw Object.assign(new Error('History too large for cloud sync'), { code: 'history-too-large' })
+  }
+  await setDoc(cloudDoc(uid), payload, { merge: true })
 }
