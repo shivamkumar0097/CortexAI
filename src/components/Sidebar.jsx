@@ -11,11 +11,20 @@ const NAV = [
   { label: 'Explore', icon: Compass },
 ]
 
-export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onSettings, open, onClose, collapsed, onToggleCollapse, user, authLoading, onAuthOpen, onSignOut, isFirebaseConfigured, view, onNavigate }) {
+export default function Sidebar({ conversations, activeId, onSelect, onNew, onRename, onDelete, onSettings, open, onClose, collapsed, onToggleCollapse, user, authLoading, onAuthOpen, onSignOut, isFirebaseConfigured, view, onNavigate }) {
   const [searching, setSearching] = useState(false)
   const [query, setQuery] = useState('')
   const [confirmSignOut, setConfirmSignOut] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [draftTitle, setDraftTitle] = useState('')
   const filtered = conversations.filter((item) => (item.title || 'New conversation').toLowerCase().includes(query.toLowerCase()))
+
+  const commitRename = () => {
+    if (!editingId) return
+    const title = draftTitle.trim()
+    if (title) onRename(editingId, title)
+    setEditingId(null)
+  }
 
   return (
     <>
@@ -116,23 +125,51 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
                     active ? 'bg-white/[0.09]' : 'hover:bg-white/[0.05]'
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => { onSelect(item.id); onClose() }}
-                    className={`min-w-0 flex-1 truncate px-3 py-2 text-left text-[13px] ${
-                      active ? 'text-white' : 'text-white/65 group-hover:text-white/90'
-                    }`}
-                  >
-                    {item.title || 'New conversation'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(item.id)}
-                    className="mr-2 shrink-0 rounded p-1 text-white/25 opacity-0 transition-opacity hover:text-red-400 group-hover:opacity-100"
-                    aria-label="Delete chat"
-                  >
-                    <Trash2 size={13} />
-                  </button>
+                  {editingId === item.id ? (
+                    <input
+                      autoFocus
+                      value={draftTitle}
+                      onChange={(event) => setDraftTitle(event.target.value)}
+                      onBlur={commitRename}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter') commitRename()
+                        if (event.key === 'Escape') setEditingId(null)
+                      }}
+                      className="min-w-0 flex-1 rounded-md border border-white/15 bg-black/40 px-2 py-1.5 text-[13px] text-white outline-none focus:border-cyan-400/50"
+                      aria-label="Chat name"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => { onSelect(item.id); onClose() }}
+                      className={`min-w-0 flex-1 truncate px-3 py-2 text-left text-[13px] ${
+                        active ? 'text-white' : 'text-white/65 group-hover:text-white/90'
+                      }`}
+                    >
+                      {item.title || 'New conversation'}
+                    </button>
+                  )}
+                  {editingId !== item.id && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => { setEditingId(item.id); setDraftTitle(item.title || '') }}
+                        className="shrink-0 rounded p-1 text-white/30 opacity-100 transition-opacity hover:text-white/80 md:opacity-0 md:group-hover:opacity-100"
+                        aria-label="Rename chat"
+                        title="Rename chat"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDelete(item.id)}
+                        className="mr-2 shrink-0 rounded p-1 text-white/25 opacity-100 transition-opacity hover:text-red-400 md:opacity-0 md:group-hover:opacity-100"
+                        aria-label="Delete chat"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </>
+                  )}
                 </div>
               )
             })}

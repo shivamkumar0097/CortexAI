@@ -28,14 +28,38 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true)
   const [cloudLoading, setCloudLoading] = useState(false)
   const [cloudReady, setCloudReady] = useState(false)
+  const [online, setOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
+  const [justOnline, setJustOnline] = useState(false)
   const abortRef = useRef(null)
   const mainRef = useRef(null)
+  const onlineTimerRef = useRef(null)
 
   useEffect(() => {
     if (user && cloudReady) saveConversations(conversations)
   }, [conversations, user, cloudReady])
   useEffect(() => saveSettings(settings), [settings])
   useEffect(() => onAuthChange((next) => { setUser(next); setAuthLoading(false) }), [])
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setOnline(true)
+      setJustOnline(true)
+      if (user && cloudReady) saveCloud(user.uid, conversations, settings).catch(() => {})
+      clearTimeout(onlineTimerRef.current)
+      onlineTimerRef.current = setTimeout(() => setJustOnline(false), 2500)
+    }
+    const handleOffline = () => {
+      setOnline(false)
+      setJustOnline(false)
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      clearTimeout(onlineTimerRef.current)
+    }
+  }, [user, cloudReady, conversations, settings])
 
   useEffect(() => {
     if (!authLoading && !user) clearConversations()
@@ -125,7 +149,7 @@ export default function App() {
       .catch((error) => {
         if (cancelled) return
         if (!conversations.length && local.length) setConversations(local)
-        showToast(`Could not load cloud history: ${error?.code || error?.message || 'unknown'}`, 'error')
+        if (navigator.onLine) showToast(`Could not load cloud history: ${error?.code || error?.message || 'unknown'}`, 'error')
       })
       .finally(() => { if (!cancelled) { setCloudLoading(false); setCloudReady(true) } })
     return () => { cancelled = true }
@@ -135,7 +159,7 @@ export default function App() {
     if (!user || !cloudReady || cloudLoading) return
     const timer = setTimeout(() => {
       saveCloud(user.uid, conversations, settings)
-        .catch((error) => showToast(`Cloud sync failed: ${error?.code || error?.message || 'unknown'}`, 'error'))
+        .catch((error) => { if (navigator.onLine) showToast(`Cloud sync failed: ${error?.code || error?.message || 'unknown'}`, 'error') })
     }, streaming ? 300 : 0)
     return () => clearTimeout(timer)
   }, [conversations, settings, user, cloudLoading, cloudReady, streaming])
@@ -146,6 +170,8 @@ export default function App() {
   const patchConversation = (id, updater) => {
     setConversations((prev) => prev.map((item) => (item.id === id ? updater(item) : item)))
   }
+
+  const renameChat = (id, title) => patchConversation(id, (item) => ({ ...item, title }))
 
   const streamReply = async (id, history, think = false) => {
     const assistantId = uid()
@@ -370,12 +396,24 @@ export default function App() {
 
   return (
     <div className="flex h-full w-full bg-[#08080a] text-white/90">
+      {(!online || justOnline) && (
+        <div
+          className={`pointer-events-none fixed left-1/2 top-2 z-[60] -translate-x-1/2 rounded-full px-3 py-1.5 text-[12px] shadow-lg ring-1 backdrop-blur ${
+            online
+              ? 'bg-emerald-500/15 text-emerald-200 ring-emerald-400/25'
+              : 'bg-amber-500/15 text-amber-200 ring-amber-400/25'
+          }`}
+        >
+          {online ? 'Back online — synced' : 'Offline — changes will sync later'}
+        </div>
+      )}
       <Sidebar
         conversations={conversations}
         activeId={activeId}
         onSelect={openChat}
         onNew={newChat}
         onDelete={removeChat}
+        onRename={renameChat}
         onSettings={() => setSettingsOpen(true)}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
