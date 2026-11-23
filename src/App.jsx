@@ -42,6 +42,53 @@ export default function App() {
   }, [authLoading, user])
 
   useEffect(() => {
+    const isMobile = () => window.matchMedia('(max-width: 767px)').matches
+    const inHorizontalScroller = (target) => {
+      let node = target instanceof Element ? target : null
+      while (node && node !== document.body) {
+        const style = window.getComputedStyle(node)
+        if (/(auto|scroll)/.test(style.overflowX) && node.scrollWidth > node.clientWidth + 4) return true
+        node = node.parentElement
+      }
+      return false
+    }
+    let startX = null
+    let startY = 0
+    let startTime = 0
+    let blocked = false
+    const onStart = (event) => {
+      if (!isMobile() || event.touches.length !== 1) { startX = null; return }
+      const target = event.target
+      if (target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]')) { startX = null; return }
+      startX = event.touches[0].clientX
+      startY = event.touches[0].clientY
+      startTime = Date.now()
+      blocked = inHorizontalScroller(target)
+    }
+    const onEnd = (event) => {
+      if (startX === null) return
+      const touch = event.changedTouches[0]
+      const dx = touch.clientX - startX
+      const dy = touch.clientY - startY
+      const elapsed = Date.now() - startTime
+      startX = null
+      if (blocked || elapsed > 700) return
+      if (Math.abs(dx) < 55 || Math.abs(dy) > Math.abs(dx) * 0.7) return
+      if (dx > 0 && !sidebarOpen) setSidebarOpen(true)
+      else if (dx < 0 && sidebarOpen) setSidebarOpen(false)
+    }
+    const onCancel = () => { startX = null }
+    document.addEventListener('touchstart', onStart, { passive: true })
+    document.addEventListener('touchend', onEnd, { passive: true })
+    document.addEventListener('touchcancel', onCancel, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onStart)
+      document.removeEventListener('touchend', onEnd)
+      document.removeEventListener('touchcancel', onCancel)
+    }
+  }, [sidebarOpen])
+
+  useEffect(() => {
     if (!user) {
       setCloudReady(false)
       return
