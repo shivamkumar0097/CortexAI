@@ -10,6 +10,9 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
+@supports (height: 100dvh) {
+  #root { height: 100dvh; }
+}
 body { overflow: hidden; background: #08080a; -webkit-touch-callout: none; }
 
 @media (max-width: 767px) {

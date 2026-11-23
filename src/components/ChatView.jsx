@@ -350,6 +350,17 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
     onSend(text, settings?.features?.think !== false && think, files)
   }
 
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!viewport) return
+    const sync = () => {
+      const el = scrollRef.current
+      if (el && atBottomRef.current) el.scrollTop = el.scrollHeight
+    }
+    viewport.addEventListener('resize', sync)
+    return () => viewport.removeEventListener('resize', sync)
+  }, [])
+
   const composerProps = {
     value: input,
     onChange: setInput,
