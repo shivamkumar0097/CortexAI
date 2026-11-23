@@ -69,5 +69,12 @@ export const loadCloud = async (uid) => {
 
 export const saveCloud = async (uid, conversations, settings) => {
   if (!db) return
-  await setDoc(cloudDoc(uid), { conversations, settings, updatedAt: Date.now() }, { merge: true })
+  const clean = conversations.map((conversation) => ({
+    ...conversation,
+    messages: conversation.messages.map((message) => ({
+      ...message,
+      attachments: message.attachments?.map(({ dataUrl, ...rest }) => rest),
+    })),
+  }))
+  await setDoc(cloudDoc(uid), { conversations: clean, settings, updatedAt: Date.now() }, { merge: true })
 }

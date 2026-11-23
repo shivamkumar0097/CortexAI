@@ -129,7 +129,7 @@ export default function App() {
           await saveCloud(user.uid, initial, settings)
         }
       })
-      .catch(() => { if (!cancelled) showToast('Could not load cloud history', 'error') })
+      .catch((error) => { if (!cancelled) showToast(`Could not load cloud history: ${error?.code || error?.message || 'unknown'}`, 'error') })
       .finally(() => { if (!cancelled) { setCloudLoading(false); setCloudReady(true) } })
     return () => { cancelled = true }
   }, [user])
@@ -138,10 +138,10 @@ export default function App() {
     if (!user || !cloudReady || cloudLoading) return
     const timer = setTimeout(() => {
       saveCloud(user.uid, conversations, settings)
-        .catch(() => showToast('Cloud sync failed', 'error'))
-    }, 300)
+        .catch((error) => showToast(`Cloud sync failed: ${error?.code || error?.message || 'unknown'}`, 'error'))
+    }, streaming ? 300 : 0)
     return () => clearTimeout(timer)
-  }, [conversations, settings, user, cloudLoading, cloudReady])
+  }, [conversations, settings, user, cloudLoading, cloudReady, streaming])
 
   const active = conversations.find((item) => item.id === activeId) || null
   const messages = active?.messages || []
