@@ -75,7 +75,7 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
   const submit = (event) => {
     event.preventDefault()
     const text = value.trim()
-    if (!text || streaming) return
+    if ((!text && !attachments.length) || streaming) return
     onSend(text, attachments)
     onChange('')
     onAttachmentsChange([])
@@ -171,7 +171,7 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
           {attachments.map((attachment, index) => (
             <div key={index} className="group relative overflow-hidden rounded-lg border border-white/10">
               {attachment.kind === 'image' ? (
-                <img src={attachment.dataUrl} alt={attachment.name} className="h-14 w-14 object-cover" />
+                <img src={attachment.dataUrl} alt={attachment.name} className="h-16 w-auto max-w-[140px] bg-black/30 object-contain" />
               ) : (
                 <div className="flex h-14 max-w-44 items-center gap-1.5 bg-black/30 px-2.5 text-[10.5px] text-white/60">
                   <FileText size={14} className="shrink-0" />

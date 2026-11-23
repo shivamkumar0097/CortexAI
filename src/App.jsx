@@ -245,14 +245,14 @@ export default function App() {
       id = uid()
       setActiveId(id)
       setConversations((prev) => [{ id, title: 'New chat', messages: [], createdAt: Date.now() }, ...prev])
-      generateChatTitle(id, text)
+      if (text) generateChatTitle(id, text)
     }
     const userMessage = { id: uid(), role: 'user', content: text, createdAt: Date.now() }
     if (attachments.length) userMessage.attachments = attachments
     const history = buildApiHistory([...messages, userMessage])
     patchConversation(id, (item) => ({
       ...item,
-      title: item.messages.length === 0 ? text.slice(0, 40) : item.title,
+      title: item.messages.length === 0 ? (text.slice(0, 40) || 'Image') : item.title,
       messages: [...item.messages, userMessage],
     }))
     await streamReply(id, history, think)

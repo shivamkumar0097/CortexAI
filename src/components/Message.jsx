@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import rehypeKatex from 'rehype-katex'
 import {
   Bookmark, Check, Copy, FileText, MoreHorizontal, RotateCw,
-  Share2, ThumbsDown, ThumbsUp, Trash2, Volume2,
+  Share2, ThumbsDown, ThumbsUp, Trash2, Volume2, X,
 } from 'lucide-react'
 import { showToast } from '../lib/toast.js'
 
@@ -15,6 +16,7 @@ export default function Message({ message, streaming, onToggleStar, onFeedback, 
   const [copied, setCopied] = useState(false)
   const [speaking, setSpeaking] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
+  const [preview, setPreview] = useState(null)
   const moreBtnRef = useRef(null)
   const moreMenuRef = useRef(null)
   const isUser = message.role === 'user'
@@ -78,32 +80,75 @@ export default function Message({ message, streaming, onToggleStar, onFeedback, 
   }
 
   if (isUser) {
+    const images = (message.attachments || []).filter((item) => item.kind === 'image' && item.dataUrl)
+    const files = (message.attachments || []).filter((item) => item.kind !== 'image' || !item.dataUrl)
     return (
-      <div className="message-in flex justify-end">
-        <div className="max-w-[min(760px,85%)] rounded-3xl bg-[#1e3a6b] px-4 py-2.5 text-[15px] leading-relaxed text-white/95 ring-1 ring-white/[0.05] shadow-[0_6px_20px_-12px_rgba(30,58,107,0.95)]">
-          {message.attachments?.length > 0 && (
-            <div className="mb-2 flex flex-wrap justify-end gap-2">
-              {message.attachments.map((attachment, index) =>
-                attachment.kind === 'image' ? (
-                  <img key={index} src={attachment.dataUrl} alt={attachment.name} className="max-h-48 rounded-xl object-cover" />
-                ) : (
-                  <a
-                    key={index}
-                    href={attachment.dataUrl}
-                    download={attachment.name}
-                    className="flex max-w-52 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[11.5px] text-white/70 hover:text-white"
-                    title={`Download ${attachment.name}`}
-                  >
-                    <FileText size={13} className="shrink-0" />
-                    <span className="truncate">{attachment.name}</span>
-                  </a>
-                ),
-              )}
+      <>
+        <div className="message-in flex flex-col items-end gap-2">
+          {images.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-2">
+              {images.map((attachment, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setPreview(attachment.dataUrl)}
+                  className="overflow-hidden rounded-2xl ring-1 ring-white/10"
+                  aria-label={`Open ${attachment.name}`}
+                >
+                  <img
+                    src={attachment.dataUrl}
+                    alt={attachment.name}
+                    className="max-h-[55vh] w-auto max-w-full object-contain"
+                  />
+                </button>
+              ))}
             </div>
           )}
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          {(message.content || files.length > 0) && (
+            <div className="max-w-[min(760px,85%)] rounded-3xl bg-[#1e3a6b] px-4 py-2.5 text-[15px] leading-relaxed text-white/95 ring-1 ring-white/[0.05] shadow-[0_6px_20px_-12px_rgba(30,58,107,0.95)]">
+              {files.length > 0 && (
+                <div className="mb-2 flex flex-wrap justify-end gap-2">
+                  {files.map((attachment, index) => (
+                    <a
+                      key={index}
+                      href={attachment.dataUrl}
+                      download={attachment.name}
+                      className="flex max-w-52 items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-[11.5px] text-white/70 hover:text-white"
+                      title={`Download ${attachment.name}`}
+                    >
+                      <FileText size={13} className="shrink-0" />
+                      <span className="truncate">{attachment.name}</span>
+                    </a>
+                  ))}
+                </div>
+              )}
+              {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+            </div>
+          )}
         </div>
-      </div>
+        {preview && createPortal(
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4"
+            onClick={() => setPreview(null)}
+          >
+            <button
+              type="button"
+              onClick={() => setPreview(null)}
+              className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full bg-white/10 text-white/80 hover:bg-white/20 hover:text-white"
+              aria-label="Close preview"
+            >
+              <X size={18} />
+            </button>
+            <img
+              src={preview}
+              alt="Preview"
+              className="max-h-full max-w-full object-contain"
+              onClick={(event) => event.stopPropagation()}
+            />
+          </div>,
+          document.body,
+        )}
+      </>
     )
   }
 
