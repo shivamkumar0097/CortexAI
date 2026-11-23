@@ -74,6 +74,17 @@ textarea, button, input, select { font: inherit; }
 }
 .fade-in { animation: fade-in 180ms ease-out both; }
 
+@keyframes brand-glow {
+  0%, 100% { color: #f8fafc; text-shadow: 0 0 18px rgba(248, 250, 252, 0.2); }
+  20% { color: #67e8f9; text-shadow: 0 0 26px rgba(34, 211, 238, 0.55); }
+  40% { color: #60a5fa; text-shadow: 0 0 26px rgba(96, 165, 250, 0.55); }
+  60% { color: #a78bfa; text-shadow: 0 0 26px rgba(167, 139, 250, 0.55); }
+  80% { color: #f0abfc; text-shadow: 0 0 26px rgba(240, 171, 252, 0.5); }
+}
+.brand-glow {
+  animation: brand-glow 6s ease-in-out infinite;
+}
+
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
