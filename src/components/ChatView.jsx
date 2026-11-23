@@ -380,7 +380,7 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
       <div className="relative min-h-0 flex-1">
         {brandMounted && (
           <div className={`pointer-events-none absolute inset-x-0 top-0 z-0 flex justify-center pt-12 transition-opacity duration-700 ease-out md:hidden ${brandActive ? 'opacity-100' : 'opacity-0'}`}>
-            <span className="text-[clamp(46px,16vw,76px)] font-semibold tracking-tight text-white">chatwave</span>
+            <span className="text-[clamp(46px,16vw,76px)] font-semibold tracking-tight text-white">CortexAI</span>
           </div>
         )}
         <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 h-full overflow-y-auto overscroll-contain px-4 sm:px-8">
