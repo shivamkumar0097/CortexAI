@@ -1,0 +1,336 @@
+import { useEffect, useRef, useState } from 'react'
+import { Menu } from 'lucide-react'
+import Sidebar from './components/Sidebar.jsx'
+import ChatView from './components/ChatView.jsx'
+import SettingsModal from './components/SettingsModal.jsx'
+import AuthModal from './components/AuthModal.jsx'
+import Toaster from './components/Toaster.jsx'
+import {
+  ImagesPanel, LibraryPanel, ScheduledPanel, PluginsPanel, ExplorePanel,
+} from './components/Panels.jsx'
+import { loadConversations, saveConversations, loadSettings, saveSettings, uid } from './lib/storage.js'
+import { showToast } from './lib/toast.js'
+import {
+  isFirebaseConfigured, loadCloud, onAuthChange, saveCloud, signOutUser,
+} from './lib/firebase.js'
+
+export default function App() {
+  const [conversations, setConversations] = useState(loadConversations)
+  const [activeId, setActiveId] = useState(null)
+  const [settings, setSettings] = useState(loadSettings)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [view, setView] = useState('chat')
+  const [streaming, setStreaming] = useState(false)
+  const [user, setUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [cloudLoading, setCloudLoading] = useState(false)
+  const abortRef = useRef(null)
+
+  useEffect(() => saveConversations(conversations), [conversations])
+  useEffect(() => saveSettings(settings), [settings])
+  useEffect(() => onAuthChange((next) => { setUser(next); setAuthLoading(false) }), [])
+
+  useEffect(() => {
+    if (!user) return
+    let cancelled = false
+    setCloudLoading(true)
+    loadCloud(user.uid)
+      .then((data) => {
+        if (cancelled) return
+        if (data?.conversations?.length) {
+          setConversations(data.conversations)
+          setActiveId((prev) => (prev && data.conversations.some((item) => item.id === prev)) ? prev : null)
+          if (data.settings) setSettings((prev) => ({ ...prev, ...data.settings }))
+          showToast('Cloud history synced', 'success')
+        } else {
+          saveCloud(user.uid, conversations, settings).catch(() => {})
+        }
+      })
+      .catch(() => { if (!cancelled) showToast('Could not load cloud history', 'error') })
+      .finally(() => { if (!cancelled) setCloudLoading(false) })
+    return () => { cancelled = true }
+  }, [user])
+
+  useEffect(() => {
+    if (!user || cloudLoading) return
+    const timer = setTimeout(() => {
+      saveCloud(user.uid, conversations, settings)
+        .catch(() => showToast('Cloud sync failed', 'error'))
+    }, 900)
+    return () => clearTimeout(timer)
+  }, [conversations, settings, user, cloudLoading])
+
+  const active = conversations.find((item) => item.id === activeId) || null
+  const messages = active?.messages || []
+
+  const patchConversation = (id, updater) => {
+    setConversations((prev) => prev.map((item) => (item.id === id ? updater(item) : item)))
+  }
+
+  const streamReply = async (id, history, think = false) => {
+    const assistantId = uid()
+    patchConversation(id, (item) => ({
+      ...item,
+      messages: [...item.messages, { id: assistantId, role: 'assistant', content: '', createdAt: Date.now() }],
+    }))
+
+    const controller = new AbortController()
+    abortRef.current = controller
+    setStreaming(true)
+    let full = ''
+    let shown = ''
+    let finished = false
+    let timer = null
+    const paint = (text) => patchConversation(id, (item) => ({
+      ...item,
+      messages: item.messages.map((message) =>
+        message.id === assistantId ? { ...message, content: text } : message,
+      ),
+    }))
+    const reveal = () => {
+      if (shown.length < full.length) {
+        let end = full.length
+        for (let i = shown.length; i < full.length; i += 1) {
+          if (full[i] === ' ' || full[i] === '\n') { end = i + 1; break }
+        }
+        end = Math.min(end, shown.length + 32)
+        shown = full.slice(0, end)
+        paint(shown)
+      } else if (finished) {
+        clearInterval(timer)
+        setStreaming(false)
+      }
+    }
+    timer = setInterval(reveal, 20)
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
+        body: JSON.stringify({
+          messages: history,
+          model: settings.model,
+          systemPrompt: settings.systemPrompt,
+          think,
+        }),
+      })
+      if (!response.ok || !response.body) throw new Error(await response.text())
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        full += decoder.decode(value, { stream: true })
+      }
+      finished = true
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        showToast(error?.message || 'Request failed', 'error')
+        full = fullText(error)
+        shown = full
+        paint(full)
+      }
+      finished = true
+    } finally {
+      abortRef.current = null
+    }
+  }
+
+  const generateChatTitle = async (id, text) => {
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'title', text }),
+      })
+      const data = await response.json()
+      const title = String(data.title || '').slice(0, 60)
+      if (!title) return
+      patchConversation(id, (item) => ({ ...item, title }))
+    } catch {
+      patchConversation(id, (item) => ({ ...item, title: text.slice(0, 40) }))
+    }
+  }
+
+  const send = async (text, think = false, attachments = []) => {
+    let id = activeId
+    if (!id) {
+      id = uid()
+      setActiveId(id)
+      setConversations((prev) => [{ id, title: 'New chat', messages: [], createdAt: Date.now() }, ...prev])
+      generateChatTitle(id, text)
+    }
+    const userMessage = { id: uid(), role: 'user', content: text, createdAt: Date.now() }
+    if (attachments.length) userMessage.attachments = attachments
+    const history = [...messages, userMessage].map(({ role, content }) => ({ role, content }))
+    patchConversation(id, (item) => ({
+      ...item,
+      title: item.messages.length === 0 ? text.slice(0, 40) : item.title,
+      messages: [...item.messages, userMessage],
+    }))
+    await streamReply(id, history, think)
+  }
+
+  const regenerate = async (messageId) => {
+    const conversation = conversations.find((item) => item.id === activeId)
+    if (!conversation) return
+    const index = conversation.messages.findIndex((message) => message.id === messageId)
+    if (index < 0) return
+    const kept = conversation.messages.slice(0, index)
+    const history = kept.map(({ role, content }) => ({ role, content }))
+    setConversations((prev) => prev.map((item) => (item.id === activeId ? { ...item, messages: kept } : item)))
+    await streamReply(activeId, history, false)
+  }
+
+  const stop = () => abortRef.current?.abort()
+
+  const openSidebar = () => {
+    if (sidebarCollapsed) setSidebarCollapsed(false)
+    else setSidebarOpen(true)
+  }
+
+  const handleSignOut = async () => {
+    await signOutUser()
+    showToast('Signed out', 'info')
+  }
+
+  const newChat = () => {
+    setConversations((prev) => prev.filter((item) => item.messages.length > 0))
+    setActiveId(null)
+    setView('chat')
+  }
+
+  const removeChat = (id) => {
+    setConversations((prev) => {
+      const next = prev.filter((item) => item.id !== id)
+      if (id === activeId) setActiveId(null)
+      return next
+    })
+  }
+
+  const openChat = (id) => {
+    setActiveId(id)
+    setView('chat')
+  }
+
+  const toggleStar = (messageId) => {
+    if (!activeId) return
+    patchConversation(activeId, (item) => ({
+      ...item,
+      messages: item.messages.map((message) =>
+        message.id === messageId ? { ...message, starred: !message.starred } : message,
+      ),
+    }))
+  }
+
+  const setFeedback = (messageId, type) => {
+    if (!activeId) return
+    patchConversation(activeId, (item) => ({
+      ...item,
+      messages: item.messages.map((message) =>
+        message.id === messageId ? { ...message, feedback: message.feedback === type ? null : type } : message,
+      ),
+    }))
+    showToast('Feedback noted — thanks!', 'success')
+  }
+
+  const deleteMessage = (messageId) => {
+    if (!activeId) return
+    patchConversation(activeId, (item) => ({
+      ...item,
+      messages: item.messages.filter((message) => message.id !== messageId),
+    }))
+    showToast('Message deleted', 'info')
+  }
+
+  const changeModel = (model) => {
+    setSettings((prev) => ({ ...prev, model }))
+    showToast(`Model set to ${model}`, 'info')
+  }
+
+  const toggleFeature = (key, enabled) => {
+    setSettings((prev) => ({ ...prev, features: { ...prev.features, [key]: enabled } }))
+    showToast(`${key} ${enabled ? 'enabled' : 'disabled'}`, 'success')
+  }
+
+  const sendPrompt = (text) => {
+    setView('chat')
+    send(text)
+  }
+
+  const panelProps = {
+    conversations,
+    onOpenChat: openChat,
+    onBack: () => setView('chat'),
+  }
+
+  return (
+    <div className="flex h-full w-full bg-[#08080a] text-white/90">
+      <Sidebar
+        conversations={conversations}
+        activeId={activeId}
+        onSelect={openChat}
+        onNew={newChat}
+        onDelete={removeChat}
+        onSettings={() => setSettingsOpen(true)}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((value) => !value)}
+        user={user}
+        authLoading={authLoading}
+        onAuthOpen={() => setAuthOpen(true)}
+        onSignOut={handleSignOut}
+        isFirebaseConfigured={isFirebaseConfigured}
+        view={view}
+        onNavigate={setView}
+      />
+      <main className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <button
+          type="button"
+          onClick={() => setSidebarOpen(true)}
+          className="icon-btn absolute left-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/[0.07] md:hidden"
+          aria-label="Open menu"
+        >
+          <Menu size={19} />
+        </button>
+        {view === 'chat' && (
+          <ChatView
+            messages={messages}
+            streaming={streaming}
+            onSend={send}
+            onStop={stop}
+            settings={settings}
+            sidebarCollapsed={sidebarCollapsed}
+            onOpenSidebar={openSidebar}
+            onToggleStar={toggleStar}
+            onFeedback={setFeedback}
+            onRegenerate={regenerate}
+            onDeleteMessage={deleteMessage}
+            onModelChange={changeModel}
+          />
+        )}
+        {view === 'images' && <ImagesPanel {...panelProps} />}
+        {view === 'library' && <LibraryPanel {...panelProps} />}
+        {view === 'scheduled' && <ScheduledPanel onBack={() => setView('chat')} />}
+        {view === 'plugins' && <PluginsPanel settings={settings} onToggleFeature={toggleFeature} onBack={() => setView('chat')} />}
+        {view === 'explore' && <ExplorePanel onPrompt={sendPrompt} onBack={() => setView('chat')} />}
+      </main>
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {settingsOpen && (
+        <SettingsModal
+          settings={settings}
+          onClose={() => setSettingsOpen(false)}
+          onSave={(value) => { setSettings((prev) => ({ ...prev, ...value })); setSettingsOpen(false) }}
+          onClear={() => { setConversations([]); setActiveId(null); setSettingsOpen(false) }}
+        />
+      )}
+      <Toaster />
+    </div>
+  )
+}
+
+const fullText = (error) => `Sorry, something went wrong.\n\n\`\`\`\n${error?.message || error}\n\`\`\``
