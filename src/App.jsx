@@ -292,7 +292,7 @@ export default function App() {
         <button
           type="button"
           onClick={() => setSidebarOpen(true)}
-          className="icon-btn absolute left-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/[0.07] md:hidden"
+          className="icon-btn absolute left-3 top-3 z-30 grid h-8 w-8 place-items-center rounded-lg text-white/50 hover:bg-white/[0.07] md:hidden"
           aria-label="Open menu"
         >
           <Menu size={19} />
