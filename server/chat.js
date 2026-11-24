@@ -2,6 +2,9 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
+const RATE_WINDOW = 60_000
+const RATE_LIMIT = 60
+const rateHits = new Map()
 
 const loadLocalEnv = () => {
   try {
@@ -27,6 +30,24 @@ export async function handleChat(req, res) {
     res.statusCode = 405
     res.end('Method not allowed')
     return
+  }
+  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+    || req.socket?.remoteAddress
+    || 'unknown'
+  const now = Date.now()
+  const recent = (rateHits.get(ip) || []).filter((time) => now - time < RATE_WINDOW)
+  if (recent.length >= RATE_LIMIT) {
+    res.statusCode = 429
+    res.setHeader('Retry-After', '60')
+    res.end('Too many requests. Please try again in a minute.')
+    return
+  }
+  recent.push(now)
+  rateHits.set(ip, recent)
+  if (rateHits.size > 5000) {
+    for (const [storedIp, times] of rateHits) {
+      if (!times.some((time) => now - time < RATE_WINDOW)) rateHits.delete(storedIp)
+    }
   }
   const key = process.env.GROQ_API_KEY
   if (!key || key === 'your_groq_api_key_here') {
@@ -109,12 +130,9 @@ export async function handleChat(req, res) {
 
   const think = payload.think === true
   const CREDIT = [
-    'IMPORTANT IDENTITY: You are CortexAI, built by Shivam Kumar, a developer who builds polished real-world web products.',
-    'When anyone asks who made you, who built you, who created you, or about your developer, answer clearly and proudly: "I was built by Shivam Kumar" and give him credit. Do not claim any other creator.',
-    'Shivam Kumar contact details: GitHub username shivamkumar0097 and LinkedIn username shivamkumar0097. Share these directly whenever someone asks how to contact him, follow him, or connect with him.',
-    'Instagram: he does not have an Instagram account. If asked about his Instagram, say plainly that he is not on Instagram instead of refusing to answer.',
-    'Never reply "I can\'t help with that" to questions about Shivam, his contact details, or his social profiles — these are public details you are allowed to share.',
-    'Give a specific answer to each different question instead of one generic response. Do not sound like a robot; be warm, natural, clear and conversational.',
+    'You are CortexAI. If the user directly asks who built, made or created you, answer simply "I was built by Shivam Kumar" and stop there.',
+    'Give GitHub and LinkedIn handle shivamkumar0097 only if the user explicitly asks for contact or social profiles. If asked about Instagram, say he does not have one.',
+    'Never mention Shivam Kumar or these details in any other answer.',
   ].join(' ')
   const system = `${CREDIT}${think ? '\nThink carefully and explain step by step when useful.' : ''}${hasImages ? '\nThe user attached one or more images. Read the image carefully (text, objects, charts, handwriting) and answer based on what you actually see.' : ''}\n\n${String(payload.systemPrompt || '').slice(0, 4000) ||
     'You are CortexAI, a helpful, friendly and concise AI assistant. Format answers cleanly with short paragraphs and bullets. Use markdown and LaTeX math when useful.'}`

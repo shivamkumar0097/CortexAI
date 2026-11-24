@@ -201,7 +201,7 @@ function Composer({ value, onChange, onSend, onStop, streaming, think, onToggleT
             submit(event)
           }
         }}
-        placeholder={isMobileView ? 'Reply to CortexAI' : 'Write anything'}
+        placeholder={isMobileView ? 'Ask to CortexAI' : 'Write anything'}
         className="composer-input max-h-44 min-h-[44px] w-full resize-none bg-transparent px-4 pb-1 pt-3.5 text-[15px] leading-relaxed text-white/90 outline-none placeholder:text-white/35"
       />
       <div className="composer-controls flex items-center justify-between gap-2 px-3 pb-3 pt-1">
@@ -432,8 +432,11 @@ export default function ChatView({ messages, streaming, onSend, onStop, settings
 
       <div className="relative min-h-0 flex-1">
         {brandMounted && (
-          <div className={`pointer-events-none absolute inset-x-0 top-[38%] z-0 flex -translate-y-1/2 justify-center transition-opacity duration-700 ease-out sm:hidden ${brandActive ? 'opacity-100' : 'opacity-0'}`}>
+          <div className={`pointer-events-none absolute inset-x-0 top-[38%] z-0 flex -translate-y-1/2 flex-col items-center justify-center transition-opacity duration-700 ease-out sm:hidden ${brandActive ? 'opacity-100' : 'opacity-0'}`}>
             <span className="brand-glow text-[clamp(46px,16vw,76px)] font-semibold tracking-tight">CortexAI</span>
+            <span className="mt-2 text-center text-[15px] font-medium tracking-tight text-white/85">
+              What’s on your mind today?
+            </span>
           </div>
         )}
         <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 h-full overflow-y-auto overscroll-contain px-4 sm:px-8">

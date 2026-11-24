@@ -11,6 +11,7 @@ import {
 import { showToast } from '../lib/toast.js'
 
 const ICON_BTN = 'icon-btn grid h-7 w-7 place-items-center rounded-lg text-white/35 hover:bg-white/[0.07] hover:text-white/90'
+const HINGLISH = /\b(mujhe|tujhe|aap|unse|unka|unki|banaya|chahiye|dijiye|sakte|karte|raha|gaya|hain|hoon|nahi|toh|bhi|pe|yaar|kya|kaise|kyun|jab|tab|agar|bas|aur|sirf|abhi|aaj|kal|hum|tum|woh|yeh|mein)\b/i
 
 class MarkdownBoundary extends Component {
   constructor(props) {
@@ -94,7 +95,13 @@ export default function Message({ message, streaming, onToggleStar, onFeedback, 
       setSpeaking(false)
       return
     }
-    const utterance = new SpeechSynthesisUtterance(message.content.replace(/[#*`$]/g, '').slice(0, 2000))
+    const text = message.content.replace(/[#*`$]/g, '').slice(0, 2000)
+    const utterance = new SpeechSynthesisUtterance(text)
+    const hindi = /[\u0900-\u097F]/.test(text) || HINGLISH.test(text)
+    utterance.lang = hindi ? 'hi-IN' : 'en-US'
+    const voice = window.speechSynthesis.getVoices().find((item) => item.lang.toLowerCase().startsWith(hindi ? 'hi' : 'en'))
+    if (voice) utterance.voice = voice
+    utterance.rate = 0.95
     utterance.onend = () => setSpeaking(false)
     utterance.onerror = () => setSpeaking(false)
     window.speechSynthesis.cancel()
