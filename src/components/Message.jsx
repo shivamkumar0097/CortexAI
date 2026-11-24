@@ -128,7 +128,7 @@ export default function Message({ message, streaming, onToggleStar, onFeedback, 
             </div>
           )}
           {(message.content || files.length > 0) && (
-            <div className="max-w-[min(760px,85%)] rounded-3xl bg-[#1e3a6b] px-4 py-2.5 text-[15px] leading-relaxed text-white/95 ring-1 ring-white/[0.05] shadow-[0_6px_20px_-12px_rgba(30,58,107,0.95)]">
+            <div className="user-bubble max-w-[min(760px,85%)] rounded-3xl px-4 py-2.5 text-[15px] leading-relaxed text-white/95 ring-1 ring-white/[0.05]">
               {files.length > 0 && (
                 <div className="mb-2 flex flex-wrap justify-end gap-2">
                   {files.map((attachment, index) => (
